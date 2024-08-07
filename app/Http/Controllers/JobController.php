@@ -91,11 +91,60 @@ class JobController extends Controller
         $job->address = $req->input('address'); 
         $job->companyLocation = $req->input('companyLocation');
         $job->additionalInfo = $req->input('additionalInfo');
-
-        // Update other fields as necessary
         $job->save();
 
         return response()->json(['message' => 'Job updated successfully!', 'job' => $job], 200);
     }
 
+    public function search(Request $request)
+    {
+        $keyword = $request->input('q');
+        $location = $request->input('location');
+    
+        // Log the request parameters
+        \Log::info('Search Query:', ['keyword' => $keyword, 'location' => $location]);
+    
+        if (!$keyword) {
+            return response()->json([
+                'error' => 'No search keyword provided'
+            ], 400);
+        }
+    
+        $jobs = Job::where(function($query) use ($keyword, $location) {
+            $query->where('title', 'like', "%{$keyword}%")
+                  ->orWhere('requirement', 'like', "%{$keyword}%")
+                  ->orWhere('location', 'like', "%{$keyword}%")
+                  ->orWhere('jobType', 'like', "%{$keyword}%")
+                  ->orWhere('companyName', 'like', "%{$keyword}%")
+                  ->orWhere('description', 'like', "%{$keyword}%")
+                  ->orWhere('address', 'like', "%{$keyword}%")
+                  ->orWhere('companyLocation', 'like', "%{$keyword}%")
+                  ->orWhere('additionalInfo', 'like', "%{$keyword}%");
+    
+            if ($location) {
+                $query->where('location', 'like', "%{$location}%");
+            }
+        })->paginate(10);
+    
+        // Log the result count
+        \Log::info('Search Result Count:', ['count' => $jobs->total()]);
+    
+        if ($jobs->isEmpty()) {
+            return response()->json([
+                'message' => 'No jobs found',
+                'data' => []
+            ], 200);
+        }
+    
+        return response()->json([
+            'data' => $jobs->items(),
+            'total' => $jobs->total(),
+            'current_page' => $jobs->currentPage(),
+            'last_page' => $jobs->lastPage(),
+            'per_page' => $jobs->perPage()
+        ]);
+    }
+    
+
+    
 }
