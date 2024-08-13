@@ -88,7 +88,7 @@ class JobController extends Controller
         $job->companyName = $req->input('companyName');
         $job->email = $req->input('email');
         $job->phone = $req->input('phone');
-        $job->address = $req->input('address'); 
+        $job->address = $req->input('address');
         $job->companyLocation = $req->input('companyLocation');
         $job->additionalInfo = $req->input('additionalInfo');
         $job->save();
@@ -100,51 +100,37 @@ class JobController extends Controller
     {
         $keyword = $request->input('q');
         $location = $request->input('location');
-    
-        // Log the request parameters
-        \Log::info('Search Query:', ['keyword' => $keyword, 'location' => $location]);
-    
-        if (!$keyword) {
-            return response()->json([
-                'error' => 'No search keyword provided'
-            ], 400);
+
+        $query = Job::query();
+
+        if ($keyword) {
+            $query->where(function ($q) use ($keyword) {
+                $q->where('title', 'like', "%{$keyword}%")
+                    ->orWhere('description', 'like', "%{$keyword}%")
+                    ->orWhere('company_name', 'like', "%{$keyword}%");
+            });
         }
-    
-        $jobs = Job::where(function($query) use ($keyword, $location) {
-            $query->where('title', 'like', "%{$keyword}%")
-                  ->orWhere('requirement', 'like', "%{$keyword}%")
-                  ->orWhere('location', 'like', "%{$keyword}%")
-                  ->orWhere('jobType', 'like', "%{$keyword}%")
-                  ->orWhere('companyName', 'like', "%{$keyword}%")
-                  ->orWhere('description', 'like', "%{$keyword}%")
-                  ->orWhere('address', 'like', "%{$keyword}%")
-                  ->orWhere('companyLocation', 'like', "%{$keyword}%")
-                  ->orWhere('additionalInfo', 'like', "%{$keyword}%");
-    
-            if ($location) {
-                $query->where('location', 'like', "%{$location}%");
-            }
-        })->paginate(10);
-    
-        // Log the result count
-        \Log::info('Search Result Count:', ['count' => $jobs->total()]);
-    
+
+        if ($location) {
+            $query->where('location', 'like', "%{$location}%");
+        }
+
+        $jobs = $query->paginate(10);
+
         if ($jobs->isEmpty()) {
             return response()->json([
-                'message' => 'No jobs found',
-                'data' => []
-            ], 200);
+                'error' => 'No jobs found'
+            ], 404);
         }
-    
+
         return response()->json([
             'data' => $jobs->items(),
             'total' => $jobs->total(),
             'current_page' => $jobs->currentPage(),
             'last_page' => $jobs->lastPage(),
             'per_page' => $jobs->perPage()
-        ]);
+        ], 200);
     }
-    
 
-    
+
 }
